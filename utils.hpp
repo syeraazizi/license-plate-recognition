@@ -13,31 +13,54 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef LIEF_ELF_UTILS_H_
-#define LIEF_ELF_UTILS_H_
+#ifndef LIEF_PE_UTILS_H_
+#define LIEF_PE_UTILS_H_
 
+#include <list>
 #include <string>
-#include <vector>
+#include <locale>
+#include <memory>
 
-#include "LIEF/types.hpp"
 #include "LIEF/visibility.h"
 
+#include "LIEF/PE/Section.hpp"
+#include "LIEF/PE/Import.hpp"
+
 namespace LIEF {
-namespace ELF {
+namespace PE {
 
-//! @brief Check if the given file is an ELF one.
-LIEF_API bool is_elf(const std::string& file);
+//! @brief check if the `file` is a PE file
+LIEF_API bool is_pe(const std::string& file);
 
-//! @brief check if the raw data is a ELF file
-LIEF_API bool is_elf(const std::vector<uint8_t>& raw);
+//! @brief check if the raw data is a PE file
+LIEF_API bool is_pe(const std::vector<uint8_t>& raw);
 
-LIEF_API unsigned long hash32(const char* name);
-LIEF_API unsigned long hash64(const char* name);
-LIEF_API uint32_t dl_new_hash(const char* name);
+//! @brief if the input `file` is a PE one, return `PE32` or `PE32+`
+LIEF_API PE_TYPE get_type(const std::string& file);
 
+//! @brief Return `PE32` or `PE32+`
+LIEF_API PE_TYPE get_type(const std::vector<uint8_t>& raw);
 
+//! @brief Compute the hash of imported functions
+//!
+//! Properties of the hash generated:
+//!   * Order agnostic
+//!   * Casse agnostic
+//!   * Ordinal (**in some extent**) agnostic
+//!
+//! @see https://www.fireeye.com/blog/threat-research/2014/01/tracking-malware-import-hashing.html
+LIEF_API std::string get_imphash(const Binary& binary);
+
+//! @brief Take a PE::Import as entry and try to resolve imports
+//! by ordinal.
+//!
+//! The ``strict`` boolean parameter enables to throw an LIEF::not_found exception
+//! if the ordinal can't be resolved. Otherwise it skips the entry.
+//!
+//! @param[in]  import Import to resolve
+//! @param[in]  strict If set to ``true``, throw an exception if the import can't be resolved
+//! @param[out] Import The import resolved: PE::ImportEntry::name is set
+LIEF_API Import resolve_ordinals(const Import& import, bool strict=false);
 }
 }
-
-
 #endif
