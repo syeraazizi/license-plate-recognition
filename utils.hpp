@@ -13,54 +13,64 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef LIEF_PE_UTILS_H_
-#define LIEF_PE_UTILS_H_
+#ifndef LIEF_UTILS_HEADER
+#define LIEF_UTILS_HEADER
 
-#include <list>
-#include <string>
-#include <locale>
-#include <memory>
-
+#include "LIEF/types.hpp"
 #include "LIEF/visibility.h"
 
-#include "LIEF/PE/Section.hpp"
-#include "LIEF/PE/Import.hpp"
+#include <string>
 
 namespace LIEF {
-namespace PE {
+uint64_t align(uint64_t value, uint64_t align_on);
 
-//! @brief check if the `file` is a PE file
-LIEF_API bool is_pe(const std::string& file);
 
-//! @brief check if the raw data is a PE file
-LIEF_API bool is_pe(const std::vector<uint8_t>& raw);
-
-//! @brief if the input `file` is a PE one, return `PE32` or `PE32+`
-LIEF_API PE_TYPE get_type(const std::string& file);
-
-//! @brief Return `PE32` or `PE32+`
-LIEF_API PE_TYPE get_type(const std::vector<uint8_t>& raw);
-
-//! @brief Compute the hash of imported functions
-//!
-//! Properties of the hash generated:
-//!   * Order agnostic
-//!   * Casse agnostic
-//!   * Ordinal (**in some extent**) agnostic
-//!
-//! @see https://www.fireeye.com/blog/threat-research/2014/01/tracking-malware-import-hashing.html
-LIEF_API std::string get_imphash(const Binary& binary);
-
-//! @brief Take a PE::Import as entry and try to resolve imports
-//! by ordinal.
-//!
-//! The ``strict`` boolean parameter enables to throw an LIEF::not_found exception
-//! if the ordinal can't be resolved. Otherwise it skips the entry.
-//!
-//! @param[in]  import Import to resolve
-//! @param[in]  strict If set to ``true``, throw an exception if the import can't be resolved
-//! @param[out] Import The import resolved: PE::ImportEntry::name is set
-LIEF_API Import resolve_ordinals(const Import& import, bool strict=false);
+template<typename T>
+inline constexpr T round(T x) {
+  return static_cast<T>(round<uint64_t>(x));
 }
+
+
+template<>
+inline uint64_t round<uint64_t>(uint64_t x) {
+  //From http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
+  x--;
+  x |= x >> 1;  // handle  2 bit numbers
+  x |= x >> 2;  // handle  4 bit numbers
+  x |= x >> 4;  // handle  8 bit numbers
+  x |= x >> 8;  // handle 16 bit numbers
+  x |= x >> 16; // handle 32 bit numbers
+  x |= x >> 32; // handle 64 bit numbers
+  x++;
+  return x;
 }
+
+
+constexpr size_t operator ""_KB(unsigned long long kbs)
+{
+    return 1024 * kbs;
+}
+
+constexpr size_t operator ""_MB(unsigned long long mbs)
+{
+    return 1024 * 1024 * mbs;
+}
+
+constexpr size_t operator ""_GB(unsigned long long gbs)
+{
+    return 1024 * 1024 * 1024 * gbs;
+}
+
+
+//! @brief Convert a UTF-16 string to a UTF-8 one
+LIEF_API std::string u16tou8(const std::u16string& string, bool remove_null_char = false);
+
+//! @brief Convert a UTF-8 string to a UTF-16 one
+LIEF_API std::u16string u8tou16(const std::string& string);
+
+LIEF_API std::string hex_str(uint8_t c);
+
+
+}
+
 #endif

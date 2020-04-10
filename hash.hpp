@@ -13,52 +13,110 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef LIEF_ELF_HASH_H_
-#define LIEF_ELF_HASH_H_
+#ifndef LIEF_HASH_H_
+#define LIEF_HASH_H_
+
+#include <iostream>
 
 #include "LIEF/visibility.h"
-#include "LIEF/hash.hpp"
-#include "LIEF/ELF.hpp"
+#include "LIEF/Object.hpp"
+#include "LIEF/Visitor.hpp"
+
 
 namespace LIEF {
-namespace ELF {
+LIEF_API size_t hash(const Object& v);
+LIEF_API size_t hash(const std::vector<uint8_t>& raw);
 
-class LIEF_API Hash : public LIEF::Hash {
+class LIEF_API Hash : public Visitor {
+
   public:
+  template<class H = Hash>
   static size_t hash(const Object& obj);
 
-  public:
-  using LIEF::Hash::Hash;
-  using LIEF::Hash::visit;
+  static size_t hash(const std::vector<uint8_t>& raw);
+  static size_t hash(const void* raw, size_t size);
+
+  // combine two elements to produce a size_t.
+  template<typename U = size_t>
+  static inline size_t combine(size_t lhs, U rhs);
 
   public:
-  virtual void visit(const Binary& binary)                  override;
-  virtual void visit(const Header& header)                  override;
-  virtual void visit(const Section& section)                override;
-  virtual void visit(const Segment& segment)                override;
-  virtual void visit(const DynamicEntry& entry)             override;
-  virtual void visit(const DynamicEntryArray& entry)        override;
-  virtual void visit(const DynamicEntryLibrary& entry)      override;
-  virtual void visit(const DynamicEntryRpath& entry)        override;
-  virtual void visit(const DynamicEntryRunPath& entry)      override;
-  virtual void visit(const DynamicSharedObject& entry)      override;
-  virtual void visit(const DynamicEntryFlags& entry)        override;
-  virtual void visit(const Symbol& symbol)                  override;
-  virtual void visit(const Relocation& relocation)          override;
-  virtual void visit(const SymbolVersion& sv)               override;
-  virtual void visit(const SymbolVersionAux& sv)            override;
-  virtual void visit(const SymbolVersionAuxRequirement& sv) override;
-  virtual void visit(const SymbolVersionRequirement& svr)   override;
-  virtual void visit(const SymbolVersionDefinition& svd)    override;
-  virtual void visit(const Note& note)                      override;
-  virtual void visit(const AndroidNote& note)               override;
-  virtual void visit(const GnuHash& gnuhash)                override;
-  virtual void visit(const SysvHash& sysvhash)              override;
+  using Visitor::visit;
+  Hash(void);
+  Hash(size_t init_value);
 
+  virtual Hash& process(const Object& obj);
+  virtual Hash& process(size_t integer);
+  virtual Hash& process(const std::string& str);
+  virtual Hash& process(const std::u16string& str);
+  virtual Hash& process(const std::vector<uint8_t>& raw);
+
+  template<class T, typename = typename std::enable_if<std::is_enum<T>::value>::type>
+  Hash& process(T v) {
+    return this->process(static_cast<size_t>(v));
+  }
+
+  template<class It>
+  Hash& process(typename It::iterator v) {
+    return this->process(std::begin(v), std::end(v));
+  }
+
+
+  template<class T, size_t N>
+  Hash& process(const std::array<T, N>& array) {
+    this->process(std::begin(array), std::end(array));
+    return *this;
+  }
+
+  template<class T>
+  Hash& process(const std::vector<T>& vector) {
+    this->process(std::begin(vector), std::end(vector));
+    return *this;
+  }
+
+  template<class T>
+  Hash& process(const std::set<T>& set) {
+    this->process(std::begin(set), std::end(set));
+    return *this;
+  }
+
+  template<class U, class V>
+  Hash& process(const std::pair<U, V>& p) {
+    this->process(p.first);
+    this->process(p.second);
+    return *this;
+  }
+
+  template<class InputIt>
+  Hash& process(InputIt begin, InputIt end) {
+    for (auto&& it = begin; it != end; ++it) {
+      this->process(*it);
+    }
+    return *this;
+  }
+
+  size_t value(void) const;
   virtual ~Hash(void);
+
+  protected:
+  size_t value_;
+
 };
 
+template<typename U>
+size_t Hash::combine(size_t lhs, U rhs) {
+  return (lhs ^ rhs) + 0x9e3779b9 + (lhs << 6) + (rhs >> 2);
 }
+
+
+template<class H>
+size_t Hash::hash(const Object& obj) {
+  H h;
+  obj.accept(h);
+  return h.value();
 }
+
+}
+
 
 #endif

@@ -1,472 +1,830 @@
-/* From llvm/Support/ELF.h */
-#ifndef LIEF_ELF_STRUCTURES_H_
-#define LIEF_ELF_STRUCTURES_H_
-
-#include <cstring>
+#ifndef LIEF_PE_STRUCTURES_H_
+#define LIEF_PE_STRUCTURES_H_
+#include <type_traits>
+#include <map>
 
 #include "LIEF/types.hpp"
-#include "LIEF/ELF/enums.hpp"
+
+#include "LIEF/PE/enums.hpp"
 
 namespace LIEF {
-//! @brief Namespace related to the LIEF's ELF module
-namespace ELF {
 
-typedef uint32_t Elf32_Addr;
-typedef uint32_t Elf32_Off;
-typedef uint16_t Elf32_Half;
-typedef uint32_t Elf32_Word;
-typedef int32_t  Elf32_Sword;
+//! Namespace related to the LIEF's PE module
+//!
+//! Some parts from llvm/Support/COFF.h
+namespace PE {
 
-typedef uint64_t Elf64_Addr;
-typedef uint64_t Elf64_Off;
-typedef uint16_t Elf64_Half;
-typedef uint32_t Elf64_Word;
-typedef int32_t  Elf64_Sword;
+//! Sizes in bytes of various things in the COFF format.
+namespace STRUCT_SIZES {
+  enum {
+    Header16Size                  = 20,
+    Header32Size                  = 56,
+    NameSize                      = 8,
+    Symbol16Size                  = 18,
+    Symbol32Size                  = 20,
+    SectionSize                   = 40,
+    RelocationSize                = 10,
+    BaseRelocationBlockSize       = 8,
+    ImportDirectoryTableEntrySize = 20,
+    ResourceDirectoryTableSize    = 16,
+    ResourceDirectoryEntriesSize  = 8,
+    ResourceDataEntrySize         = 16
+  };
+}
 
-typedef uint64_t Elf64_Xword;
-typedef int64_t  Elf64_Sxword;
 
 
-/** Object file magic string. */
-static const char ElfMagic[] = {'\x7f', 'E', 'L', 'F'};
+//! The maximum number of sections that a COFF object can have (inclusive).
+static const int32_t MaxNumberOfSections16 = 65279;
+
+//! The PE signature bytes that follows the DOS stub header.
+static const char PE_Magic[] = { 'P', 'E', '\0', '\0' };
+
+static const char Rich_Magic[] = {'R', 'i', 'c', 'h'};
+static const char DanS_Magic[] = {'D', 'a', 'n', 'S'};
+
+static const uint32_t DanS_Magic_number = 0x536E6144;
+
+static const char BigObjMagic[] = {
+  '\xc7', '\xa1', '\xba', '\xd1', '\xee', '\xba', '\xa9', '\x4b',
+  '\xaf', '\x20', '\xfa', '\xf6', '\x6a', '\xa4', '\xdc', '\xb8',
+};
+
+static const uint8_t DEFAULT_NUMBER_DATA_DIRECTORIES = 15;
 
 #pragma pack(push,1)
-
-/** 32-bits ELF header */
-struct Elf32_Ehdr {
-  unsigned char e_ident[16];        /**< ELF Identification bytes */
-  Elf32_Half    e_type;             /**< Type of file (see ET_* below) */
-  Elf32_Half    e_machine;          /**< Required architecture for this file (see EM_*) */
-  Elf32_Word    e_version;          /**< Must be equal to 1 */
-  Elf32_Addr    e_entry;            /**< Address to jump to in order to start program */
-  Elf32_Off     e_phoff;            /**< Program header table's file offset, in bytes */
-  Elf32_Off     e_shoff;            /**< Section header table's file offset, in bytes */
-  Elf32_Word    e_flags;            /**< Processor-specific flags */
-  Elf32_Half    e_ehsize;           /**< Size of ELF header, in bytes */
-  Elf32_Half    e_phentsize;        /**< Size of an entry in the program header table */
-  Elf32_Half    e_phnum;            /**< Number of entries in the program header table */
-  Elf32_Half    e_shentsize;        /**< Size of an entry in the section header table */
-  Elf32_Half    e_shnum;            /**< Number of entries in the section header table */
-  Elf32_Half    e_shstrndx;         /**< Sect hdr table index of sect name string table */
+struct pe_header {
+  char     signature[sizeof(PE_Magic)];
+  uint16_t Machine;
+  uint16_t NumberOfSections;
+  uint32_t TimeDateStamp;
+  uint32_t PointerToSymbolTable;
+  uint32_t NumberOfSymbols;
+  uint16_t SizeOfOptionalHeader;
+  uint16_t Characteristics;
 };
 
 
-/**
- * @brief 64-bit ELF header. Fields are the same as for Elf32_Ehdr, but with different
- * types
- * @see Elf32_Ehdr
- */
-struct Elf64_Ehdr {
-  unsigned char e_ident[16];
-  Elf64_Half    e_type;
-  Elf64_Half    e_machine;
-  Elf64_Word    e_version;
-  Elf64_Addr    e_entry;
-  Elf64_Off     e_phoff;
-  Elf64_Off     e_shoff;
-  Elf64_Word    e_flags;
-  Elf64_Half    e_ehsize;
-  Elf64_Half    e_phentsize;
-  Elf64_Half    e_phnum;
-  Elf64_Half    e_shentsize;
-  Elf64_Half    e_shnum;
-  Elf64_Half    e_shstrndx;
+struct pe_relocation {
+  uint32_t VirtualAddress;
+  uint32_t SymbolTableIndex;
+  uint16_t Type;
+};
+
+struct pe_base_relocation_block {
+  uint32_t PageRVA;
+  uint32_t BlockSize;
 };
 
 
-/** 32-bits Section header. */
-struct Elf32_Shdr {
-  Elf32_Word sh_name;      /**< Section name (index into string table) */
-  Elf32_Word sh_type;      /**< Section type (SHT_*) */
-  Elf32_Word sh_flags;     /**< Section flags (SHF_*) */
-  Elf32_Addr sh_addr;      /**< Address where section is to be loaded */
-  Elf32_Off  sh_offset;    /**< File offset of section data, in bytes */
-  Elf32_Word sh_size;      /**< Size of section, in bytes */
-  Elf32_Word sh_link;      /**< Section type-specific header table index link */
-  Elf32_Word sh_info;      /**< Section type-specific extra information */
-  Elf32_Word sh_addralign; /**< Section address alignment */
-  Elf32_Word sh_entsize;   /**< Size of records contained within the section */
-};
-
-/**
- * 64-bits Section header Section header for ELF64 - same fields as Elf32_Shdr, different types.
- * @see Elf32_Shdr
- */
-struct Elf64_Shdr {
-  Elf64_Word  sh_name;
-  Elf64_Word  sh_type;
-  Elf64_Xword sh_flags;
-  Elf64_Addr  sh_addr;
-  Elf64_Off   sh_offset;
-  Elf64_Xword sh_size;
-  Elf64_Word  sh_link;
-  Elf64_Word  sh_info;
-  Elf64_Xword sh_addralign;
-  Elf64_Xword sh_entsize;
+struct pe_symbol {
+  union {
+    char ShortName[8];
+    struct
+		{
+	    uint32_t Zeroes;
+			uint32_t Offset;
+    } Name;
+  } Name;
+  uint32_t Value;
+  int16_t  SectionNumber;
+  uint16_t Type;
+  uint8_t  StorageClass;
+  uint8_t  NumberOfAuxSymbols;
 };
 
 
-/** Symbol table entries for ELF32. */
-struct Elf32_Sym {
-  Elf32_Word    st_name;  /**< Symbol name (index into string table) */
-  Elf32_Addr    st_value; /**< Value or address associated with the symbol */
-  Elf32_Word    st_size;  /**< Size of the symbol */
-  unsigned char st_info;  /**< Symbol's type and binding attributes */
-  unsigned char st_other; /**< Must be zero; reserved */
-  Elf32_Half    st_shndx; /**< Which section (header table index) it's defined in */
+struct pe_section {
+  char     Name[8];
+  uint32_t VirtualSize;
+  uint32_t VirtualAddress;
+  uint32_t SizeOfRawData;
+  uint32_t PointerToRawData;
+  uint32_t PointerToRelocations;
+  uint32_t PointerToLineNumbers;
+  uint16_t NumberOfRelocations;
+  uint16_t NumberOfLineNumbers;
+  uint32_t Characteristics;
 };
 
-/** Symbol table entries for ELF64. */
-struct Elf64_Sym {
-  Elf64_Word      st_name;  /**< Symbol name (index into string table) */
-  unsigned char   st_info;  /**< Symbol's type and binding attributes */
-  unsigned char   st_other; /**< Must be zero; reserved */
-  Elf64_Half      st_shndx; /**< Which section (header tbl index) it's defined in */
-  Elf64_Addr      st_value; /**< Value or address associated with the symbol */
-  Elf64_Xword     st_size;  /**< Size of the symbol */
-
+struct AuxiliaryFunctionDefinition {
+  uint32_t TagIndex;
+  uint32_t TotalSize;
+  uint32_t PointerToLinenumber;
+  uint32_t PointerToNextFunction;
+  char     unused[2];
 };
 
-/** @brief Relocation entry, without explicit addend. */
-struct Elf32_Rel {
-  Elf32_Addr r_offset; /**< Location (file byte offset, or program virtual addr) */
-  Elf32_Word r_info;   /**< Symbol table index and type of relocation to apply */
+struct AuxiliarybfAndefSymbol {
+  uint8_t  unused1[4];
+  uint16_t Linenumber;
+  uint8_t  unused2[6];
+  uint32_t PointerToNextFunction;
+  uint8_t  unused3[2];
 };
 
-/** @brief Relocation entry with explicit addend. */
-struct Elf32_Rela {
-  Elf32_Addr  r_offset; /**< Location (file byte offset, or program virtual addr) */
-  Elf32_Word  r_info;   /**< Symbol table index and type of relocation to apply */
-  Elf32_Sword r_addend; /**< Compute value for relocatable field by adding this */
-};
-
-/** @brief Relocation entry, without explicit addend. */
-struct Elf64_Rel {
-  Elf64_Addr r_offset; /**< Location (file byte offset, or program virtual addr). */
-  Elf64_Xword r_info;  /**< Symbol table index and type of relocation to apply. */
-};
-
-/** @brief Relocation entry with explicit addend. */
-struct Elf64_Rela {
-  Elf64_Addr  r_offset;  /**< Location (file byte offset, or program virtual addr). */
-  Elf64_Xword  r_info;   /**< Symbol table index and type of relocation to apply. */
-  Elf64_Sxword r_addend; /**< Compute value for relocatable field by adding this. */
-};
-
-/** Program header for ELF32. */
-struct Elf32_Phdr {
-  Elf32_Word p_type;   /**< Type of segment */
-  Elf32_Off  p_offset; /**< File offset where segment is located, in bytes */
-  Elf32_Addr p_vaddr;  /**< Virtual address of beginning of segment */
-  Elf32_Addr p_paddr;  /**< Physical address of beginning of segment (OS-specific) */
-  Elf32_Word p_filesz; /**< Num. of bytes in file image of segment (may be zero) */
-  Elf32_Word p_memsz;  /**< Num. of bytes in mem image of segment (may be zero) */
-  Elf32_Word p_flags;  /**< Segment flags */
-  Elf32_Word p_align;  /**< Segment alignment constraint */
-};
-
-/** Program header for ELF64. */
-struct Elf64_Phdr {
-  Elf64_Word   p_type;   /**< Type of segment */
-  Elf64_Word   p_flags;  /**< Segment flags */
-  Elf64_Off    p_offset; /**< File offset where segment is located, in bytes */
-  Elf64_Addr   p_vaddr;  /**< Virtual address of beginning of segment */
-  Elf64_Addr   p_paddr;  /**< Physical addr of beginning of segment (OS-specific) */
-  Elf64_Xword  p_filesz; /**< Num. of bytes in file image of segment (may be zero) */
-  Elf64_Xword  p_memsz;  /**< Num. of bytes in mem image of segment (may be zero) */
-  Elf64_Xword  p_align;  /**< Segment alignment constraint */
+struct AuxiliaryWeakExternal {
+  uint32_t TagIndex;
+  uint32_t Characteristics;
+  uint8_t  unused[10];
 };
 
 
-/** Dynamic table entry for ELF32. */
-struct Elf32_Dyn
-{
-  Elf32_Sword d_tag;          /**< Type of dynamic table entry. */
-  union
-  {
-    Elf32_Word d_val;         /**< Integer value of entry. */
-    Elf32_Addr d_ptr;         /**< Pointer value of entry. */
-  } d_un;
+struct AuxiliarySectionDefinition {
+  uint32_t Length;
+  uint16_t NumberOfRelocations;
+  uint16_t NumberOfLinenumbers;
+  uint32_t CheckSum;
+  uint32_t Number;
+  uint8_t  Selection;
+  char     unused;
 };
 
-/** Dynamic table entry for ELF64. */
-struct Elf64_Dyn
-{
-  Elf64_Sxword d_tag;         /**< Type of dynamic table entry. */
-  union
-  {
-    Elf64_Xword d_val;        /**< Integer value of entry. */
-    Elf64_Addr  d_ptr;        /**< Pointer value of entry. */
-  } d_un;
+struct AuxiliaryCLRToken {
+  uint8_t  AuxType;
+  uint8_t  unused1;
+  uint32_t SymbolTableIndex;
+  char     unused2[12];
+};
+
+union Auxiliary {
+  AuxiliaryFunctionDefinition FunctionDefinition;
+  AuxiliarybfAndefSymbol      bfAndefSymbol;
+  AuxiliaryWeakExternal       WeakExternal;
+  AuxiliarySectionDefinition  SectionDefinition;
 };
 
 
-struct Elf32_Verneed {
-  Elf32_Half    vn_version; /**< Version of structure */
-  Elf32_Half    vn_cnt;     /**< Number of associated aux entry */
-  Elf32_Word    vn_file;    /**< Offset of filename for this dependency */
-  Elf32_Word    vn_aux;     /**< Offset in bytes to vernaux array */
-  Elf32_Word    vn_next;    /**< Offset in bytes to next verneed */
-} ;
-
-struct Elf64_Verneed {
-  Elf64_Half    vn_version; /**< Version of structure */
-  Elf64_Half    vn_cnt;     /**< Number of associated aux entry */
-  Elf64_Word    vn_file;    /**< Offset of filename for this dependency */
-  Elf64_Word    vn_aux;     /**< Offset in bytes to vernaux array */
-  Elf64_Word    vn_next;    /**< Offset in bytes to next verneed */
+/// @brief The Import Directory Table.
+///
+/// There is a single array of these and one entry per imported DLL.
+struct pe_import {
+  uint32_t ImportLookupTableRVA;
+  uint32_t TimeDateStamp;
+  uint32_t ForwarderChain;
+  uint32_t NameRVA;
+  uint32_t ImportAddressTableRVA;
 };
 
-struct Elf64_Vernaux {
-  Elf64_Word    vna_hash;
-  Elf64_Half    vna_flags;
-  Elf64_Half    vna_other;
-  Elf64_Word    vna_name;
-  Elf64_Word    vna_next;
+
+struct ImportLookupTableEntry32 {
+  uint32_t data;
 };
 
-struct Elf32_Vernaux {
-  Elf32_Word    vna_hash;
-  Elf32_Half    vna_flags;
-  Elf32_Half    vna_other;
-  Elf32_Word    vna_name;
-  Elf32_Word    vna_next;
+struct ImportLookupTableEntry64 {
+  uint64_t data;
 };
 
-struct Elf32_Auxv {
- uint32_t a_type;     /**< Entry type */
- union {
-     uint32_t a_val;  /**< Integer value */
-   } a_un;
+
+struct pe32_tls {
+  uint32_t RawDataStartVA;
+  uint32_t RawDataEndVA;
+  uint32_t AddressOfIndex;
+  uint32_t AddressOfCallback;
+  uint32_t SizeOfZeroFill;
+  uint32_t Characteristics;
 };
 
-struct Elf64_Auxv {
- uint64_t a_type;     /**< Entry type */
- union {
-     uint64_t a_val;  /**< Integer value */
-   } a_un;
+
+struct pe64_tls {
+  uint64_t RawDataStartVA;
+  uint64_t RawDataEndVA;
+  uint64_t AddressOfIndex;
+  uint64_t AddressOfCallback;
+  uint32_t SizeOfZeroFill;
+  uint32_t Characteristics;
 };
 
-/** Structure for .gnu.version_d (64 bits) */
-struct Elf64_Verdef {
-  Elf64_Half	vd_version;	/**< Version revision */
-  Elf64_Half	vd_flags;		/**< Version information */
-  Elf64_Half	vd_ndx;			/**< Version Index */
-  Elf64_Half	vd_cnt;			/**< Number of associated aux entries */
-  Elf64_Word	vd_hash;		/**< Version name hash value */
-  Elf64_Word	vd_aux;			/**< Offset in bytes to verdaux array */
-  Elf64_Word	vd_next;		/**< Offset in bytes to next verdef entry */
+
+/// @brief The DOS compatible header at the front of all PEs.
+struct pe_dos_header {
+  uint16_t Magic;
+  uint16_t UsedBytesInTheLastPage;
+  uint16_t FileSizeInPages;
+  uint16_t NumberOfRelocationItems;
+  uint16_t HeaderSizeInParagraphs;
+  uint16_t MinimumExtraParagraphs;
+  uint16_t MaximumExtraParagraphs;
+  uint16_t InitialRelativeSS;
+  uint16_t InitialSP;
+  uint16_t Checksum;
+  uint16_t InitialIP;
+  uint16_t InitialRelativeCS;
+  uint16_t AddressOfRelocationTable;
+  uint16_t OverlayNumber;
+  uint16_t Reserved[4];
+  uint16_t OEMid;
+  uint16_t OEMinfo;
+  uint16_t Reserved2[10];
+  uint32_t AddressOfNewExeHeader;
 };
 
-/** Structure for .gnu.version_d (32 bits) */
-struct Elf32_Verdef {
-  Elf32_Half	vd_version;	/**< Version revision */
-  Elf32_Half	vd_flags;		/**< Version information */
-  Elf32_Half	vd_ndx;			/**< Version Index */
-  Elf32_Half	vd_cnt;			/**< Number of associated aux entries */
-  Elf32_Word	vd_hash;		/**< Version name hash value */
-  Elf32_Word	vd_aux;			/**< Offset in bytes to verdaux array */
-  Elf32_Word	vd_next;		/**< Offset in bytes to next verdef entry */
+struct pe64_optional_header {
+  uint16_t Magic;
+  uint8_t  MajorLinkerVersion;
+  uint8_t  MinorLinkerVersion;
+  uint32_t SizeOfCode;
+  uint32_t SizeOfInitializedData;
+  uint32_t SizeOfUninitializedData;
+  uint32_t AddressOfEntryPoint; // RVA
+  uint32_t BaseOfCode; // RVA
+  //uint32_t BaseOfData; // RVA
+  uint64_t ImageBase;
+  uint32_t SectionAlignment;
+  uint32_t FileAlignment;
+  uint16_t MajorOperatingSystemVersion;
+  uint16_t MinorOperatingSystemVersion;
+  uint16_t MajorImageVersion;
+  uint16_t MinorImageVersion;
+  uint16_t MajorSubsystemVersion;
+  uint16_t MinorSubsystemVersion;
+  uint32_t Win32VersionValue;
+  uint32_t SizeOfImage;
+  uint32_t SizeOfHeaders;
+  uint32_t CheckSum;
+  uint16_t Subsystem;
+  uint16_t DLLCharacteristics;
+  uint64_t SizeOfStackReserve;
+  uint64_t SizeOfStackCommit;
+  uint64_t SizeOfHeapReserve;
+  uint64_t SizeOfHeapCommit;
+  uint32_t LoaderFlags;
+  uint32_t NumberOfRvaAndSize;
 };
 
-struct Elf64_Verdaux
-{
-  Elf64_Word	vda_name;		/**< Version or dependency names */
-  Elf64_Word	vda_next;		/**< Offset in bytes to next verdaux entry */
+
+struct pe32_optional_header {
+  uint16_t Magic;
+  uint8_t  MajorLinkerVersion;
+  uint8_t  MinorLinkerVersion;
+  uint32_t SizeOfCode;
+  uint32_t SizeOfInitializedData;
+  uint32_t SizeOfUninitializedData;
+  uint32_t AddressOfEntryPoint; // RVA
+  uint32_t BaseOfCode; // RVA
+  uint32_t BaseOfData; // RVA
+  uint32_t ImageBase;
+  uint32_t SectionAlignment;
+  uint32_t FileAlignment;
+  uint16_t MajorOperatingSystemVersion;
+  uint16_t MinorOperatingSystemVersion;
+  uint16_t MajorImageVersion;
+  uint16_t MinorImageVersion;
+  uint16_t MajorSubsystemVersion;
+  uint16_t MinorSubsystemVersion;
+  uint32_t Win32VersionValue;
+  uint32_t SizeOfImage;
+  uint32_t SizeOfHeaders;
+  uint32_t CheckSum;
+  uint16_t Subsystem;
+  uint16_t DLLCharacteristics;
+  uint32_t SizeOfStackReserve;
+  uint32_t SizeOfStackCommit;
+  uint32_t SizeOfHeapReserve;
+  uint32_t SizeOfHeapCommit;
+  uint32_t LoaderFlags;
+  uint32_t NumberOfRvaAndSize;
 };
 
-struct Elf32_Verdaux
-{
-  Elf32_Word	vda_name;		/**< Version or dependency names */
-  Elf32_Word	vda_next;		/**< Offset in bytes to next verdaux entry */
+
+struct pe_data_directory {
+  uint32_t RelativeVirtualAddress;
+  uint32_t Size;
 };
+
+
+struct pe_debug {
+  uint32_t Characteristics;
+  uint32_t TimeDateStamp;
+  uint16_t MajorVersion;
+  uint16_t MinorVersion;
+  uint32_t Type;
+  uint32_t SizeOfData;
+  uint32_t AddressOfRawData;
+  uint32_t PointerToRawData;
+};
+
+
+struct pe_pdb_70 {
+  uint32_t cv_signature;
+  uint8_t  signature[16];
+  uint32_t age;
+  char*    filename;
+};
+
+struct pe_pdb_20 {
+  uint32_t cv_signature;
+  uint32_t offset;
+  uint32_t signature;
+  uint32_t age;
+  char*    filename;
+};
+
+
+struct pe_resource_directory_table {
+  uint32_t Characteristics;
+  uint32_t TimeDateStamp;
+  uint16_t MajorVersion;
+  uint16_t MinorVersion;
+  uint16_t NumberOfNameEntries;
+  uint16_t NumberOfIDEntries;
+};
+
+struct pe_resource_directory_entries {
+  union {
+    uint32_t NameRVA;
+    uint32_t IntegerID;
+  } NameID;
+  uint32_t RVA;
+};
+
+struct pe_resource_data_entry {
+  uint32_t DataRVA;
+  uint32_t Size;
+  uint32_t Codepage;
+  uint32_t Reserved;
+};
+
+struct pe_resource_string {
+  int16_t Length;
+  uint16_t Name[1];
+};
+
+
+//
+// Export structures
+//
+struct pe_export_directory_table {
+  uint32_t ExportFlags;           ///< Reserverd must be 0
+  uint32_t Timestamp;             ///< The time and date that the export data was created
+  uint16_t MajorVersion;          ///< The Major version number
+  uint16_t MinorVersion;          ///< The Minor version number
+  uint32_t NameRVA;               ///< The address of the ASCII DLL's name (RVA)
+  uint32_t OrdinalBase;           ///< The starting ordinal number for exports. (Usually 1)
+  uint32_t AddressTableEntries;   ///< Number of entries in the export address table
+  uint32_t NumberOfNamePointers;  ///< Number of entries in the name pointer table
+  uint32_t ExportAddressTableRVA; ///< Address of the export address table (RVA)
+  uint32_t NamePointerRVA;        ///< Address of the name pointer table (RVA)
+  uint32_t OrdinalTableRVA;       ///< Address of the ordinal table (RVA)
+};
+
+
+struct pe_resource_fixed_file_info {
+  uint32_t signature;          // e.g.  0xfeef04bd
+  uint32_t struct_version;      // e.g.  0x00000042 = "0.42"
+  uint32_t file_version_MS;    // e.g.  0x00030075 = "3.75"
+  uint32_t file_version_LS;    // e.g.  0x00000031 = "0.31"
+  uint32_t product_version_MS; // e.g.  0x00030010 = "3.10"
+  uint32_t product_version_LS; // e.g.  0x00000031 = "0.31"
+  uint32_t file_flags_mask;    // = 0x3F for version "0.42"
+  uint32_t file_flags;         // e.g.  VFF_DEBUG | VFF_PRERELEASE
+  uint32_t file_OS;            // e.g.  VOS_DOS_WINDOWS16
+  uint32_t file_type;          // e.g.  VFT_DRIVER
+  uint32_t file_subtype;       // e.g.  VFT2_DRV_KEYBOARD
+  uint32_t file_date_MS;       // e.g.  0
+  uint32_t file_date_LS;       // e.g.  0
+};
+
+
+struct pe_resource_version_info {
+  uint16_t length;
+  uint16_t sizeof_value;
+  uint16_t type;
+  char16_t key[16];
+  // uint16_t padding;
+  //
+  // uint16_t padding;
+  // uint16_t children
+};
+
+//! @brief Resource icons directory structure
+//! Based on https://msdn.microsoft.com/en-us/library/ff468901(v=vs.85).aspx
+//!
+//! This is the begining of the RESOURCE_TYPES::GROUP_ICON content
+struct pe_resource_icon_dir {
+  uint16_t reserved; ///< Reserved
+  uint16_t type;     ///< Resource type (1 for icons)
+  uint16_t count;    ///< Number of icons
+};
+
+
+//! @brief Structure that follows pe_resource_icon_dir in a resource entry
+struct pe_resource_icon_group {
+	uint8_t width;        ///< Width, in pixels, of the image
+	uint8_t height;       ///< Height, in pixels, of the image
+	uint8_t color_count;  ///< Number of colors in image (0 if >=8bpp)
+	uint8_t reserved;     ///< Reserved (must be 0)
+	uint16_t planes;      ///< Color Planes
+	uint16_t bit_count;   ///< Bits per pixel
+	uint32_t size;        ///< Size of the image in bytes
+	uint16_t ID;          ///< The associated ID
+};
+
+//! @brief Structure that follows pe_resource_icon_dir in a icon **file**
+struct pe_icon_header {
+	uint8_t width;        ///< Width, in pixels, of the image
+	uint8_t height;       ///< Height, in pixels, of the image
+	uint8_t color_count;  ///< Number of colors in image (0 if >=8bpp)
+	uint8_t reserved;     ///< Reserved (must be 0)
+	uint16_t planes;      ///< Color Planes
+	uint16_t bit_count;   ///< Bits per pixel
+	uint32_t size;        ///< Size of the image in bytes
+	uint32_t offset;      ///< Offset to the pixels
+};
+
+//! @brief Extended dialog box template
+struct pe_dialog_template_ext {
+  uint16_t version;
+  uint16_t signature;
+  uint32_t help_id;
+  uint32_t ext_style;
+  uint32_t style;
+  uint16_t nbof_items;
+  int16_t x;
+  int16_t y;
+  int16_t cx;
+  int16_t cy;
+  // sz_Or_Ord menu;
+  // sz_Or_Ord windowClass;
+  // char16_t  title[titleLen];
+  // uint16_t  pointsize;
+  // uint16_t  weight;
+  // uint8_t   italic;
+  // uint8_t   charset;
+  // char16_t  typeface[stringLen];
+};
+
+//! @brief Dialog box template
+struct pe_dialog_template {
+  uint32_t style;
+  uint32_t ext_style;
+  uint16_t nbof_items;
+  int16_t x;
+  int16_t y;
+  int16_t cx;
+  int16_t cy;
+};
+
+
+//! @brief Extended dialog box template item
+struct pe_dialog_item_template_ext {
+  uint32_t help_id;
+  uint32_t ext_style;
+  uint32_t style;
+  int16_t x;
+  int16_t y;
+  int16_t cx;
+  int16_t cy;
+  uint32_t id;
+  // sz_Or_Ord windowClass;
+  // sz_Or_Ord title;
+  // uint16_t extra_count;
+};
+
+
+//! @brief Dialog box template item
+struct pe_dialog_item_template {
+  uint32_t style;
+  uint32_t ext_style;
+  int16_t x;
+  int16_t y;
+  int16_t cx;
+  int16_t cy;
+  uint16_t id;
+};
+
+struct pe_code_integrity {
+  uint16_t Flags;
+  uint16_t Catalog;
+  uint32_t CatalogOffset;
+  uint32_t Reserved;
+};
+
+
+
+
 
 
 #pragma pack(pop)
 
 
 
-static const ELF_SECTION_FLAGS section_flags_array[] = {
-  ELF_SECTION_FLAGS::SHF_NONE, ELF_SECTION_FLAGS::SHF_WRITE, ELF_SECTION_FLAGS::SHF_ALLOC, ELF_SECTION_FLAGS::SHF_EXECINSTR,
-   ELF_SECTION_FLAGS::SHF_MERGE, ELF_SECTION_FLAGS::SHF_STRINGS, ELF_SECTION_FLAGS::SHF_INFO_LINK,
-   ELF_SECTION_FLAGS::SHF_LINK_ORDER, ELF_SECTION_FLAGS::SHF_OS_NONCONFORMING, ELF_SECTION_FLAGS::SHF_GROUP,
-   ELF_SECTION_FLAGS::SHF_TLS, ELF_SECTION_FLAGS::SHF_EXCLUDE, ELF_SECTION_FLAGS::XCORE_SHF_CP_SECTION,
-   ELF_SECTION_FLAGS::XCORE_SHF_DP_SECTION, ELF_SECTION_FLAGS::SHF_MASKOS, ELF_SECTION_FLAGS::SHF_MASKPROC,
-   ELF_SECTION_FLAGS::SHF_HEX_GPREL, ELF_SECTION_FLAGS::SHF_MIPS_NODUPES, ELF_SECTION_FLAGS::SHF_MIPS_NAMES,
-   ELF_SECTION_FLAGS::SHF_MIPS_LOCAL, ELF_SECTION_FLAGS::SHF_MIPS_NOSTRIP, ELF_SECTION_FLAGS::SHF_MIPS_GPREL,
-   ELF_SECTION_FLAGS::SHF_MIPS_MERGE, ELF_SECTION_FLAGS::SHF_MIPS_ADDR, ELF_SECTION_FLAGS::SHF_MIPS_STRING
+static const HEADER_CHARACTERISTICS header_characteristics_array[] = {
+  HEADER_CHARACTERISTICS::IMAGE_FILE_INVALID,
+  HEADER_CHARACTERISTICS::IMAGE_FILE_RELOCS_STRIPPED,
+  HEADER_CHARACTERISTICS::IMAGE_FILE_EXECUTABLE_IMAGE,
+  HEADER_CHARACTERISTICS::IMAGE_FILE_LINE_NUMS_STRIPPED,
+  HEADER_CHARACTERISTICS::IMAGE_FILE_LOCAL_SYMS_STRIPPED,
+  HEADER_CHARACTERISTICS::IMAGE_FILE_AGGRESSIVE_WS_TRIM,
+  HEADER_CHARACTERISTICS::IMAGE_FILE_LARGE_ADDRESS_AWARE,
+  HEADER_CHARACTERISTICS::IMAGE_FILE_BYTES_REVERSED_LO,
+  HEADER_CHARACTERISTICS::IMAGE_FILE_32BIT_MACHINE,
+  HEADER_CHARACTERISTICS::IMAGE_FILE_DEBUG_STRIPPED,
+  HEADER_CHARACTERISTICS::IMAGE_FILE_REMOVABLE_RUN_FROM_SWAP,
+  HEADER_CHARACTERISTICS::IMAGE_FILE_NET_RUN_FROM_SWAP,
+  HEADER_CHARACTERISTICS::IMAGE_FILE_SYSTEM,
+  HEADER_CHARACTERISTICS::IMAGE_FILE_DLL,
+  HEADER_CHARACTERISTICS::IMAGE_FILE_UP_SYSTEM_ONLY,
+  HEADER_CHARACTERISTICS::IMAGE_FILE_BYTES_REVERSED_HI
 };
 
 
-static const ARM_EFLAGS arm_eflags_array[] = {
-  ARM_EFLAGS::EF_ARM_SOFT_FLOAT,
-  ARM_EFLAGS::EF_ARM_VFP_FLOAT,
-  ARM_EFLAGS::EF_ARM_EABI_UNKNOWN,
-  ARM_EFLAGS::EF_ARM_EABI_VER1,
-  ARM_EFLAGS::EF_ARM_EABI_VER2,
-  ARM_EFLAGS::EF_ARM_EABI_VER3,
-  ARM_EFLAGS::EF_ARM_EABI_VER4,
-  ARM_EFLAGS::EF_ARM_EABI_VER5,
-};
-
-static const PPC64_EFLAGS ppc64_eflags_array[] = {
-  PPC64_EFLAGS::EF_PPC64_ABI,
-};
-
-static const MIPS_EFLAGS mips_eflags_array[] = {
-  MIPS_EFLAGS::EF_MIPS_NOREORDER,
-  MIPS_EFLAGS::EF_MIPS_PIC,
-  MIPS_EFLAGS::EF_MIPS_CPIC,
-  MIPS_EFLAGS::EF_MIPS_ABI2,
-  MIPS_EFLAGS::EF_MIPS_32BITMODE,
-  MIPS_EFLAGS::EF_MIPS_FP64,
-  MIPS_EFLAGS::EF_MIPS_NAN2008,
-  MIPS_EFLAGS::EF_MIPS_ABI_O32,
-  MIPS_EFLAGS::EF_MIPS_ABI_O64,
-  MIPS_EFLAGS::EF_MIPS_ABI_EABI32,
-  MIPS_EFLAGS::EF_MIPS_ABI_EABI64,
-  MIPS_EFLAGS::EF_MIPS_MACH_3900,
-  MIPS_EFLAGS::EF_MIPS_MACH_4010,
-  MIPS_EFLAGS::EF_MIPS_MACH_4100,
-  MIPS_EFLAGS::EF_MIPS_MACH_4650,
-  MIPS_EFLAGS::EF_MIPS_MACH_4120,
-  MIPS_EFLAGS::EF_MIPS_MACH_4111,
-  MIPS_EFLAGS::EF_MIPS_MACH_SB1,
-  MIPS_EFLAGS::EF_MIPS_MACH_OCTEON,
-  MIPS_EFLAGS::EF_MIPS_MACH_XLR,
-  MIPS_EFLAGS::EF_MIPS_MACH_OCTEON2,
-  MIPS_EFLAGS::EF_MIPS_MACH_OCTEON3,
-  MIPS_EFLAGS::EF_MIPS_MACH_5400,
-  MIPS_EFLAGS::EF_MIPS_MACH_5900,
-  MIPS_EFLAGS::EF_MIPS_MACH_5500,
-  MIPS_EFLAGS::EF_MIPS_MACH_9000,
-  MIPS_EFLAGS::EF_MIPS_MACH_LS2E,
-  MIPS_EFLAGS::EF_MIPS_MACH_LS2F,
-  MIPS_EFLAGS::EF_MIPS_MACH_LS3A,
-  MIPS_EFLAGS::EF_MIPS_MICROMIPS,
-  MIPS_EFLAGS::EF_MIPS_ARCH_ASE_M16,
-  MIPS_EFLAGS::EF_MIPS_ARCH_ASE_MDMX,
-  MIPS_EFLAGS::EF_MIPS_ARCH_1,
-  MIPS_EFLAGS::EF_MIPS_ARCH_2,
-  MIPS_EFLAGS::EF_MIPS_ARCH_3,
-  MIPS_EFLAGS::EF_MIPS_ARCH_4,
-  MIPS_EFLAGS::EF_MIPS_ARCH_5,
-  MIPS_EFLAGS::EF_MIPS_ARCH_32,
-  MIPS_EFLAGS::EF_MIPS_ARCH_64,
-  MIPS_EFLAGS::EF_MIPS_ARCH_32R2,
-  MIPS_EFLAGS::EF_MIPS_ARCH_64R2,
-  MIPS_EFLAGS::EF_MIPS_ARCH_32R6,
-  MIPS_EFLAGS::EF_MIPS_ARCH_64R6,
-};
-
-static const HEXAGON_EFLAGS hexagon_eflags_array[] = {
-  HEXAGON_EFLAGS::EF_HEXAGON_MACH_V2,
-  HEXAGON_EFLAGS::EF_HEXAGON_MACH_V3,
-  HEXAGON_EFLAGS::EF_HEXAGON_MACH_V4,
-  HEXAGON_EFLAGS::EF_HEXAGON_MACH_V5,
-  HEXAGON_EFLAGS::EF_HEXAGON_ISA_MACH,
-  HEXAGON_EFLAGS::EF_HEXAGON_ISA_V2,
-  HEXAGON_EFLAGS::EF_HEXAGON_ISA_V3,
-  HEXAGON_EFLAGS::EF_HEXAGON_ISA_V4,
-  HEXAGON_EFLAGS::EF_HEXAGON_ISA_V5,
-};
-
-static const DYNAMIC_FLAGS dynamic_flags_array[] = {
-  DYNAMIC_FLAGS::DF_ORIGIN,
-  DYNAMIC_FLAGS::DF_SYMBOLIC,
-  DYNAMIC_FLAGS::DF_TEXTREL,
-  DYNAMIC_FLAGS::DF_BIND_NOW,
-  DYNAMIC_FLAGS::DF_STATIC_TLS,
+// Common section type
+enum class PE_SECTION_TYPES : uint8_t {
+  TEXT       = 0,
+  TLS        = 1,
+  IMPORT     = 2,
+  DATA       = 3,
+  BSS        = 4,
+  RESOURCE   = 5,
+  RELOCATION = 6,
+  EXPORT     = 7,
+  DEBUG      = 8,
+  LOAD_CONFIG = 9,
+  UNKNOWN     = 10
 };
 
 
-static const DYNAMIC_FLAGS_1 dynamic_flags_1_array[] = {
-  DYNAMIC_FLAGS_1::DF_1_NOW,
-  DYNAMIC_FLAGS_1::DF_1_GLOBAL,
-  DYNAMIC_FLAGS_1::DF_1_GROUP,
-  DYNAMIC_FLAGS_1::DF_1_NODELETE,
-  DYNAMIC_FLAGS_1::DF_1_LOADFLTR,
-  DYNAMIC_FLAGS_1::DF_1_INITFIRST,
-  DYNAMIC_FLAGS_1::DF_1_NOOPEN,
-  DYNAMIC_FLAGS_1::DF_1_ORIGIN,
-  DYNAMIC_FLAGS_1::DF_1_DIRECT,
-  DYNAMIC_FLAGS_1::DF_1_TRANS,
-  DYNAMIC_FLAGS_1::DF_1_INTERPOSE,
-  DYNAMIC_FLAGS_1::DF_1_NODEFLIB,
-  DYNAMIC_FLAGS_1::DF_1_NODUMP,
-  DYNAMIC_FLAGS_1::DF_1_CONFALT,
-  DYNAMIC_FLAGS_1::DF_1_ENDFILTEE,
-  DYNAMIC_FLAGS_1::DF_1_DISPRELDNE,
-  DYNAMIC_FLAGS_1::DF_1_DISPRELPND,
-  DYNAMIC_FLAGS_1::DF_1_NODIRECT,
-  DYNAMIC_FLAGS_1::DF_1_IGNMULDEF,
-  DYNAMIC_FLAGS_1::DF_1_NOKSYMS,
-  DYNAMIC_FLAGS_1::DF_1_NOHDR,
-  DYNAMIC_FLAGS_1::DF_1_EDITED,
-  DYNAMIC_FLAGS_1::DF_1_NORELOC,
-  DYNAMIC_FLAGS_1::DF_1_SYMINTPOSE,
-  DYNAMIC_FLAGS_1::DF_1_GLOBAUDIT,
-  DYNAMIC_FLAGS_1::DF_1_SINGLETON,
+static const SECTION_CHARACTERISTICS section_characteristics_array[] = {
+  SECTION_CHARACTERISTICS::IMAGE_SCN_TYPE_NO_PAD,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_CNT_CODE,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_CNT_INITIALIZED_DATA,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_CNT_UNINITIALIZED_DATA,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_LNK_OTHER,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_LNK_INFO,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_LNK_REMOVE,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_LNK_COMDAT,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_GPREL,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_MEM_PURGEABLE,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_MEM_16BIT,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_MEM_LOCKED,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_MEM_PRELOAD,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_ALIGN_1BYTES,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_ALIGN_2BYTES,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_ALIGN_4BYTES,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_ALIGN_8BYTES,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_ALIGN_16BYTES,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_ALIGN_32BYTES,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_ALIGN_64BYTES,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_ALIGN_128BYTES,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_ALIGN_256BYTES,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_ALIGN_512BYTES,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_ALIGN_1024BYTES,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_ALIGN_2048BYTES,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_ALIGN_4096BYTES,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_ALIGN_8192BYTES,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_LNK_NRELOC_OVFL,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_MEM_DISCARDABLE,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_MEM_NOT_CACHED,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_MEM_NOT_PAGED,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_MEM_SHARED,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_MEM_EXECUTE,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_MEM_READ,
+  SECTION_CHARACTERISTICS::IMAGE_SCN_MEM_WRITE,
+};
+
+
+enum class PE_TYPE : uint16_t {
+    PE32      = 0x10b, ///< 32bits
+    PE32_PLUS = 0x20b  ///< 64 bits
 };
 
 
 
-class ELF32 {
+static const DLL_CHARACTERISTICS dll_characteristics_array[] = {
+  DLL_CHARACTERISTICS::IMAGE_DLL_CHARACTERISTICS_HIGH_ENTROPY_VA,
+  DLL_CHARACTERISTICS::IMAGE_DLL_CHARACTERISTICS_DYNAMIC_BASE,
+  DLL_CHARACTERISTICS::IMAGE_DLL_CHARACTERISTICS_FORCE_INTEGRITY,
+  DLL_CHARACTERISTICS::IMAGE_DLL_CHARACTERISTICS_NX_COMPAT,
+  DLL_CHARACTERISTICS::IMAGE_DLL_CHARACTERISTICS_NO_ISOLATION,
+  DLL_CHARACTERISTICS::IMAGE_DLL_CHARACTERISTICS_NO_SEH,
+  DLL_CHARACTERISTICS::IMAGE_DLL_CHARACTERISTICS_NO_BIND,
+  DLL_CHARACTERISTICS::IMAGE_DLL_CHARACTERISTICS_APPCONTAINER,
+  DLL_CHARACTERISTICS::IMAGE_DLL_CHARACTERISTICS_WDM_DRIVER,
+  DLL_CHARACTERISTICS::IMAGE_DLL_CHARACTERISTICS_GUARD_CF,
+  DLL_CHARACTERISTICS::IMAGE_DLL_CHARACTERISTICS_TERMINAL_SERVER_AWARE,
+};
+
+
+static const EXTENDED_WINDOW_STYLES extended_window_styles_array[] = {
+  EXTENDED_WINDOW_STYLES::WS_EX_DLGMODALFRAME,
+  EXTENDED_WINDOW_STYLES::WS_EX_NOPARENTNOTIFY,
+  EXTENDED_WINDOW_STYLES::WS_EX_TOPMOST,
+  EXTENDED_WINDOW_STYLES::WS_EX_ACCEPTFILES,
+  EXTENDED_WINDOW_STYLES::WS_EX_TRANSPARENT,
+  EXTENDED_WINDOW_STYLES::WS_EX_MDICHILD,
+  EXTENDED_WINDOW_STYLES::WS_EX_TOOLWINDOW,
+  EXTENDED_WINDOW_STYLES::WS_EX_WINDOWEDGE,
+  EXTENDED_WINDOW_STYLES::WS_EX_CLIENTEDGE,
+  EXTENDED_WINDOW_STYLES::WS_EX_CONTEXTHELP,
+  EXTENDED_WINDOW_STYLES::WS_EX_RIGHT,
+  EXTENDED_WINDOW_STYLES::WS_EX_LEFT,
+  EXTENDED_WINDOW_STYLES::WS_EX_RTLREADING,
+  EXTENDED_WINDOW_STYLES::WS_EX_LTRREADING,
+  EXTENDED_WINDOW_STYLES::WS_EX_LEFTSCROLLBAR,
+  EXTENDED_WINDOW_STYLES::WS_EX_RIGHTSCROLLBAR,
+  EXTENDED_WINDOW_STYLES::WS_EX_CONTROLPARENT,
+  EXTENDED_WINDOW_STYLES::WS_EX_STATICEDGE,
+  EXTENDED_WINDOW_STYLES::WS_EX_APPWINDOW,
+};
+
+
+static const WINDOW_STYLES window_styles_array[] = {
+  WINDOW_STYLES::WS_OVERLAPPED,
+  WINDOW_STYLES::WS_POPUP,
+  WINDOW_STYLES::WS_CHILD,
+  WINDOW_STYLES::WS_MINIMIZE,
+  WINDOW_STYLES::WS_VISIBLE,
+  WINDOW_STYLES::WS_DISABLED,
+  WINDOW_STYLES::WS_CLIPSIBLINGS,
+  WINDOW_STYLES::WS_CLIPCHILDREN,
+  WINDOW_STYLES::WS_MAXIMIZE,
+  WINDOW_STYLES::WS_CAPTION,
+  WINDOW_STYLES::WS_BORDER,
+  WINDOW_STYLES::WS_DLGFRAME,
+  WINDOW_STYLES::WS_VSCROLL,
+  WINDOW_STYLES::WS_HSCROLL,
+  WINDOW_STYLES::WS_SYSMENU,
+  WINDOW_STYLES::WS_THICKFRAME,
+  WINDOW_STYLES::WS_GROUP,
+  WINDOW_STYLES::WS_TABSTOP,
+  WINDOW_STYLES::WS_MINIMIZEBOX,
+  WINDOW_STYLES::WS_MAXIMIZEBOX,
+};
+
+
+static const DIALOG_BOX_STYLES dialog_box_styles_array[] = {
+  DIALOG_BOX_STYLES::DS_ABSALIGN,
+  DIALOG_BOX_STYLES::DS_SYSMODAL,
+  DIALOG_BOX_STYLES::DS_LOCALEDIT,
+  DIALOG_BOX_STYLES::DS_SETFONT,
+  DIALOG_BOX_STYLES::DS_MODALFRAME,
+  DIALOG_BOX_STYLES::DS_NOIDLEMSG,
+  DIALOG_BOX_STYLES::DS_SETFOREGROUND,
+  DIALOG_BOX_STYLES::DS_3DLOOK,
+  DIALOG_BOX_STYLES::DS_FIXEDSYS,
+  DIALOG_BOX_STYLES::DS_NOFAILCREATE,
+  DIALOG_BOX_STYLES::DS_CONTROL,
+  DIALOG_BOX_STYLES::DS_CENTER,
+  DIALOG_BOX_STYLES::DS_CENTERMOUSE,
+  DIALOG_BOX_STYLES::DS_CONTEXTHELP,
+  DIALOG_BOX_STYLES::DS_SHELLFONT,
+};
+
+// From Virtualbox - include/iprt/formats/pecoff.h
+template <typename T>
+struct load_configuration {
+  uint32_t Characteristics;
+  uint32_t TimeDateStamp;
+  uint16_t MajorVersion;
+  uint16_t MinorVersion;
+  uint32_t GlobalFlagsClear;
+  uint32_t GlobalFlagsSet;
+  uint32_t CriticalSectionDefaultTimeout;
+  T        DeCommitFreeBlockThreshold;
+  T        DeCommitTotalFreeThreshold;
+  T        LockPrefixTable;
+  T        MaximumAllocationSize;
+  T        VirtualMemoryThreshold;
+  T        ProcessAffinityMask;
+  uint32_t ProcessHeapFlags;
+  uint16_t CSDVersion;
+  uint16_t Reserved1;
+  T        EditList;
+  T        SecurityCookie;
+};
+
+template <typename T>
+struct load_configuration_v0 : load_configuration<T> {
+  T SEHandlerTable;
+  T SEHandlerCount;
+};
+
+
+#pragma pack(4)
+// Windows 10 - 9879
+
+template <typename T>
+struct load_configuration_v1 : load_configuration_v0<T> {
+  T        GuardCFCheckFunctionPointer;
+  T        GuardCFDispatchFunctionPointer;
+  T        GuardCFFunctionTable;
+  T        GuardCFFunctionCount;
+  uint32_t GuardFlags;
+};
+#pragma pack()
+
+
+// Windows 10 - 9879
+template <typename T>
+struct load_configuration_v2 : load_configuration_v1<T> {
+  pe_code_integrity CodeIntegrity;
+};
+
+
+template <typename T>
+struct load_configuration_v3 : load_configuration_v2<T> {
+  T GuardAddressTakenIatEntryTable;
+  T GuardAddressTakenIatEntryCount;
+  T GuardLongJumpTargetTable;
+  T GuardLongJumpTargetCount;
+};
+
+
+template <typename T>
+struct load_configuration_v4 : load_configuration_v3<T> {
+  T DynamicValueRelocTable;
+  T HybridMetadataPointer;
+};
+
+
+template <typename T>
+struct load_configuration_v5 : load_configuration_v4<T> {
+  T        GuardRFFailureRoutine;
+  T        GuardRFFailureRoutineFunctionPointer;
+  uint32_t DynamicValueRelocTableOffset;
+  uint16_t DynamicValueRelocTableSection;
+  uint16_t Reserved2;
+};
+
+
+#pragma pack(4)
+template <typename T>
+struct load_configuration_v6 : load_configuration_v5<T> {
+  T        GuardRFVerifyStackPointerFunctionPointer;
+  uint32_t HotPatchTableOffset;
+};
+#pragma pack()
+
+template <typename T>
+struct load_configuration_v7 : load_configuration_v6<T> {
+  uint32_t Reserved3;
+  T        AddressOfSomeUnicodeString;
+};
+
+class PE32 {
   public:
-  typedef Elf32_Addr    Elf_Addr;
-  typedef Elf32_Off     Elf_Off;
-  typedef Elf32_Half    Elf_Half;
-  typedef Elf32_Word    Elf_Word;
-  typedef Elf32_Sword   Elf_Sword;
-  // Equivalent
-  typedef Elf32_Addr    Elf_Xword;
-  typedef Elf32_Sword   Elf_Sxword;
+    using pe_optional_header = pe32_optional_header;
+    using pe_tls             = pe32_tls;
+    using uint               = uint32_t;
 
-  typedef uint32_t      uint;
-
-  typedef Elf32_Phdr    Elf_Phdr;
-  typedef Elf32_Ehdr    Elf_Ehdr;
-  typedef Elf32_Shdr    Elf_Shdr;
-  typedef Elf32_Sym     Elf_Sym;
-  typedef Elf32_Rel     Elf_Rel;
-  typedef Elf32_Rela    Elf_Rela;
-  typedef Elf32_Dyn     Elf_Dyn;
-  typedef Elf32_Verneed Elf_Verneed;
-  typedef Elf32_Vernaux Elf_Vernaux;
-  typedef Elf32_Auxv    Elf_Auxv;
-  typedef Elf32_Verdef  Elf_Verdef;
-  typedef Elf32_Verdaux Elf_Verdaux;
-
-};
+    using load_configuration_t    = load_configuration<uint32_t>;
+    using load_configuration_v0_t = load_configuration_v0<uint32_t>;
+    using load_configuration_v1_t = load_configuration_v1<uint32_t>;
+    using load_configuration_v2_t = load_configuration_v2<uint32_t>;
+    using load_configuration_v3_t = load_configuration_v3<uint32_t>;
+    using load_configuration_v4_t = load_configuration_v4<uint32_t>;
+    using load_configuration_v5_t = load_configuration_v5<uint32_t>;
+    using load_configuration_v6_t = load_configuration_v6<uint32_t>;
+    using load_configuration_v7_t = load_configuration_v7<uint32_t>;
 
 
-class ELF64 {
-  public:
-  typedef Elf64_Addr    Elf_Addr;
-  typedef Elf64_Off     Elf_Off;
-  typedef Elf64_Half    Elf_Half;
-  typedef Elf64_Word    Elf_Word;
-  typedef Elf64_Sword   Elf_Sword;
+    static_assert(sizeof(load_configuration_t)    == 0x40, "");
+    static_assert(sizeof(load_configuration_v0_t) == 0x48, "");
+    static_assert(sizeof(load_configuration_v1_t) == 0x5c, "");
+    static_assert(sizeof(load_configuration_v2_t) == 0x68, "");
+    static_assert(sizeof(load_configuration_v3_t) == 0x78, "");
+    static_assert(sizeof(load_configuration_v4_t) == 0x80, "");
+    static_assert(sizeof(load_configuration_v5_t) == 0x90, "");
+    static_assert(sizeof(load_configuration_v6_t) == 0x98, "");
+    //static_assert(sizeof(LoadConfiguration_V7) == 0xA0, "");
 
-  typedef Elf64_Xword   Elf_Xword;
-  typedef Elf64_Sxword  Elf_Sxword;
-
-  typedef uint64_t      uint;
-
-  typedef Elf64_Phdr    Elf_Phdr;
-  typedef Elf64_Ehdr    Elf_Ehdr;
-  typedef Elf64_Shdr    Elf_Shdr;
-  typedef Elf64_Sym     Elf_Sym;
-  typedef Elf64_Rel     Elf_Rel;
-  typedef Elf64_Rela    Elf_Rela;
-  typedef Elf64_Dyn     Elf_Dyn;
-  typedef Elf64_Verneed Elf_Verneed;
-  typedef Elf64_Vernaux Elf_Vernaux;
-  typedef Elf64_Auxv    Elf_Auxv;
-  typedef Elf64_Verdef  Elf_Verdef;
-  typedef Elf64_Verdaux Elf_Verdaux;
+    static const std::map<WIN_VERSION, size_t> load_configuration_sizes;
  };
 
-} /* end namespace ELF */
-} /* end namespace LIEF */
+
+class PE64 {
+  public:
+    using pe_optional_header = pe64_optional_header;
+    using pe_tls             = pe64_tls;
+    using uint               = uint64_t;
+
+    using load_configuration_t    = load_configuration<uint64_t>;
+    using load_configuration_v0_t = load_configuration_v0<uint64_t>;
+    using load_configuration_v1_t = load_configuration_v1<uint64_t>;
+    using load_configuration_v2_t = load_configuration_v2<uint64_t>;
+    using load_configuration_v3_t = load_configuration_v3<uint64_t>;
+    using load_configuration_v4_t = load_configuration_v4<uint64_t>;
+    using load_configuration_v5_t = load_configuration_v5<uint64_t>;
+    using load_configuration_v6_t = load_configuration_v6<uint64_t>;
+    using load_configuration_v7_t = load_configuration_v7<uint64_t>;
+
+    static_assert(sizeof(load_configuration_t)    == 0x60,  "");
+    static_assert(sizeof(load_configuration_v0_t) == 0x70,  "");
+    static_assert(sizeof(load_configuration_v1_t) == 0x94,  "");
+    static_assert(sizeof(load_configuration_v2_t) == 0xA0,  "");
+    static_assert(sizeof(load_configuration_v3_t) == 0xC0,  "");
+    static_assert(sizeof(load_configuration_v4_t) == 0xD0,  "");
+    static_assert(sizeof(load_configuration_v5_t) == 0xE8,  "");
+    static_assert(sizeof(load_configuration_v6_t) == 0xF4,  "");
+    static_assert(sizeof(load_configuration_v7_t) == 0x100, "");
+
+    static const std::map<WIN_VERSION, size_t> load_configuration_sizes;
+};
+
+
+
+} // end namesapce ELF
+}
+
 #endif

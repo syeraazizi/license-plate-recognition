@@ -13,16 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef C_LIEF_ELF_SECTION_H_
-#define C_LIEF_ELF_SECTION_H_
+#ifndef C_LIEF_PE_SECTION_H_
+#define C_LIEF_PE_SECTION_H_
 
-#include <stdint.h>
+#include <inttypes.h>
 
-#include "LIEF/ELF/enums.h"
-
-/** @defgroup elf_section_c_api Section
- *  @ingroup elf_c_api
- *  @addtogroup elf_section_c_api
+#include "LIEF/PE/enums.h"
+/**  @defgroup pe_section_c_api Section
+ *  @ingroup pe_c_api
+ *  @addtogroup pe_section_c_api
  *  @brief Section C API
  *
  *  @{
@@ -32,23 +31,24 @@
 extern "C" {
 #endif
 
-struct Elf_Section_t {
-  const char*            name;
-  uint32_t               flags;
-  enum LIEF_ELF_ELF_SECTION_TYPES type;
-  uint64_t               virtual_address;
-  uint64_t               offset;
-  uint64_t               original_size;
-  uint32_t               link;
-  uint32_t               info;
-  uint64_t               alignment;
-  uint64_t               entry_size;
-  uint64_t               size;
-  uint8_t*               content;
-  double                 entropy;
+struct Pe_Section_t {
+  const char* name;
+  uint64_t    virtual_address;
+  uint64_t    size;
+  uint64_t    offset;
+
+  uint32_t    virtual_size;
+  uint32_t    pointerto_relocation;
+  uint32_t    pointerto_line_numbers;
+  uint32_t    characteristics;
+
+  uint8_t*    content;
+  double      entropy;
+
 };
 
-typedef struct Elf_Section_t Elf_Section_t;
+typedef struct Pe_Section_t Pe_Section_t;
+
 
 #ifdef __cplusplus
 }

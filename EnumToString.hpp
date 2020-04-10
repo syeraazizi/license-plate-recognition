@@ -13,50 +13,59 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ELF_ENUM_TO_STRING_H_
-#define ELF_ENUM_TO_STRING_H_
+#ifndef LIEF_PE_ENUM_TO_STRING_H
+#define LIEF_PE_ENUM_TO_STRING_H
+
 #include "LIEF/visibility.h"
-#include "LIEF/ELF/Structures.hpp"
+#include "LIEF/PE/Structures.hpp"
 
 namespace LIEF {
-namespace ELF {
-LIEF_API const char* to_string(SYMBOL_BINDINGS e);
-LIEF_API const char* to_string(E_TYPE e);
-LIEF_API const char* to_string(VERSION e);
-LIEF_API const char* to_string(ARCH e);
-LIEF_API const char* to_string(SEGMENT_TYPES e);
-LIEF_API const char* to_string(DYNAMIC_TAGS e);
-LIEF_API const char* to_string(ELF_SECTION_TYPES e);
-LIEF_API const char* to_string(ELF_SECTION_FLAGS e);
-LIEF_API const char* to_string(ELF_SYMBOL_TYPES e);
-LIEF_API const char* to_string(RELOC_x86_64 e);
-LIEF_API const char* to_string(RELOC_ARM e);
-LIEF_API const char* to_string(RELOC_i386 e);
-LIEF_API const char* to_string(RELOC_AARCH64 e);
-LIEF_API const char* to_string(RELOC_POWERPC32 e);
-LIEF_API const char* to_string(RELOC_POWERPC64 e);
-LIEF_API const char* to_string(ELF_CLASS e);
-LIEF_API const char* to_string(ELF_DATA e);
-LIEF_API const char* to_string(OS_ABI e);
-LIEF_API const char* to_string(DYNSYM_COUNT_METHODS e);
-LIEF_API const char* to_string(NOTE_TYPES e);
-LIEF_API const char* to_string(NOTE_ABIS e);
-LIEF_API const char* to_string(RELOCATION_PURPOSES e);
-LIEF_API const char* to_string(IDENTITY e);
-LIEF_API const char* to_string(SYMBOL_SECTION_INDEX e);
-LIEF_API const char* to_string(DYNAMIC_FLAGS e);
-LIEF_API const char* to_string(DYNAMIC_FLAGS_1 e);
-LIEF_API const char* to_string(ELF_SEGMENT_FLAGS e);
-LIEF_API const char* to_string(ELF_SYMBOL_VISIBILITY e);
+namespace PE {
+LIEF_API const char* to_string(PE_TYPE e);
+LIEF_API const char* to_string(DATA_DIRECTORY e);
 
-LIEF_API const char* to_string(PPC64_EFLAGS e);
-LIEF_API const char* to_string(ARM_EFLAGS e);
-LIEF_API const char* to_string(MIPS_EFLAGS e);
-LIEF_API const char* to_string(HEXAGON_EFLAGS e);
+LIEF_API const char* to_string(MACHINE_TYPES e);
+LIEF_API const char* to_string(HEADER_CHARACTERISTICS e);
+LIEF_API const char* to_string(SUBSYSTEM e);
+LIEF_API const char* to_string(DLL_CHARACTERISTICS e);
 
+LIEF_API const char* to_string(SECTION_CHARACTERISTICS e);
+LIEF_API const char* to_string(PE_SECTION_TYPES e);
 
-} // namespace ELF
+LIEF_API const char* to_string(SYMBOL_BASE_TYPES e);
+LIEF_API const char* to_string(SYMBOL_COMPLEX_TYPES e);
+LIEF_API const char* to_string(SYMBOL_SECTION_NUMBER e);
+LIEF_API const char* to_string(SYMBOL_STORAGE_CLASS e);
+
+LIEF_API const char* to_string(RELOCATIONS_BASE_TYPES e);
+LIEF_API const char* to_string(RELOCATIONS_I386 e);
+LIEF_API const char* to_string(RELOCATIONS_AMD64 e);
+LIEF_API const char* to_string(RELOCATIONS_ARM e);
+
+LIEF_API const char* to_string(DEBUG_TYPES e);
+LIEF_API const char* to_string(CODE_VIEW_SIGNATURES e);
+
+LIEF_API const char* to_string(RESOURCE_TYPES e);
+LIEF_API const char* to_string(RESOURCE_LANGS e);
+LIEF_API const char* to_string(RESOURCE_SUBLANGS e);
+LIEF_API const char* to_string(CODE_PAGES e);
+
+LIEF_API const char* to_string(EXTENDED_WINDOW_STYLES e);
+LIEF_API const char* to_string(WINDOW_STYLES e);
+LIEF_API const char* to_string(DIALOG_BOX_STYLES e);
+
+LIEF_API const char* to_string(FIXED_VERSION_OS e);
+LIEF_API const char* to_string(FIXED_VERSION_FILE_FLAGS e);
+LIEF_API const char* to_string(FIXED_VERSION_FILE_TYPES e);
+LIEF_API const char* to_string(FIXED_VERSION_FILE_SUB_TYPES e);
+
+LIEF_API const char* to_string(WIN_VERSION e);
+
+LIEF_API const char* to_string(GUARD_CF_FLAGS e);
+LIEF_API const char* to_string(GUARD_RF_FLAGS e);
+
+} // namespace PE
 } // namespace LIEF
-
 #endif
+
 

@@ -13,14 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef C_LIEF_ELF_HEADER_H_
-#define C_LIEF_ELF_HEADER_H_
+#ifndef C_LIEF_PE_HEADER_H_
+#define C_LIEF_PE_HEADER_H_
+
 #include <inttypes.h>
 
-#include "LIEF/ELF/enums.h"
-/**  @defgroup elf_header_c_api Header
- *  @ingroup elf_c_api
- *  @addtogroup elf_header_c_api
+#include "LIEF/PE/enums.h"
+/**  @defgroup pe_header_c_api Header
+ *  @ingroup pe_c_api
+ *  @addtogroup pe_header_c_api
  *  @brief Header C API
  *
  *  @{
@@ -30,24 +31,18 @@
 extern "C" {
 #endif
 
-struct Elf_Header_t {
-  uint8_t      identity[LIEF_ELF_EI_NIDENT];
-  enum LIEF_ELF_E_TYPE  file_type;
-  enum LIEF_ELF_ARCH    machine_type;
-  enum LIEF_ELF_VERSION object_file_version;
-  uint64_t     entrypoint;
-  uint64_t     program_headers_offset;
-  uint64_t     section_headers_offset;
-  uint32_t     processor_flags;
-  uint32_t     header_size;
-  uint32_t     program_header_size;
-  uint32_t     numberof_segments;
-  uint32_t     section_header_size;
-  uint32_t     numberof_sections;
-  uint32_t     name_string_table_idx;
+struct Pe_Header_t {
+  uint8_t            signature[4];
+  enum LIEF_PE_MACHINE_TYPES machine;
+  uint16_t           numberof_sections;
+  uint32_t           time_date_stamp;
+  uint32_t           pointerto_symbol_table;
+  uint32_t           numberof_symbols;
+  uint16_t           sizeof_optional_header;
+  uint16_t           characteristics;
 };
 
-typedef struct Elf_Header_t Elf_Header_t;
+typedef struct Pe_Header_t Pe_Header_t;
 
 
 #ifdef __cplusplus

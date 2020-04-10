@@ -13,122 +13,85 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef LIEF_ELF_SECTION_H_
-#define LIEF_ELF_SECTION_H_
-
-#include <string>
-#include <vector>
+#ifndef LIEF_PE_SECTION_H_
+#define LIEF_PE_SECTION_H_
 #include <iostream>
-#include <tuple>
+#include <vector>
+#include <string>
 #include <set>
 
 #include "LIEF/visibility.h"
 
 #include "LIEF/Abstract/Section.hpp"
 
-#include "LIEF/ELF/type_traits.hpp"
-#include "LIEF/ELF/Structures.hpp"
-#include "LIEF/ELF/DataHandler/Handler.hpp"
+#include "LIEF/PE/Structures.hpp"
 
 
 namespace LIEF {
-namespace ELF {
+namespace PE {
 
-class Segment;
 class Parser;
-class Binary;
 class Builder;
+class Binary;
 
-LIEF_API Section operator"" _section(const char* name);
-
-//! @brief Class wich represent sections
 class LIEF_API Section : public LIEF::Section {
 
   friend class Parser;
-  friend class Binary;
   friend class Builder;
+  friend class Binary;
 
- public:
-    Section(uint8_t *data, ELF_CLASS type);
-    Section(const Elf64_Shdr* header);
-    Section(const Elf32_Shdr* header);
-    Section(const std::string& name, ELF_SECTION_TYPES type = ELF_SECTION_TYPES::SHT_PROGBITS);
+  public:
+    using LIEF::Section::name;
 
+    Section(const pe_section* header);
     Section(void);
-    ~Section(void);
+    Section(const std::vector<uint8_t>& data, const std::string& name = "", uint32_t characteristics = 0);
+    Section(const std::string& name);
 
-    Section& operator=(Section other);
-    Section(const Section& other);
-    void swap(Section& other);
+    Section& operator=(const Section&);
+    Section(const Section&);
+    virtual ~Section(void);
 
-    uint32_t          name_idx(void) const;
-    ELF_SECTION_TYPES type(void) const;
+    //! @brief Return the size of the data in the section.
+    uint32_t sizeof_raw_data(void) const;
+    uint32_t virtual_size(void) const;
 
     // ============================
     // LIEF::Section implementation
     // ============================
-
-    //! @brief Section's content
     virtual std::vector<uint8_t> content(void) const override;
 
-    //! @brief Set section content
+
+    uint32_t pointerto_raw_data(void) const;
+    uint32_t pointerto_relocation(void) const;
+    uint32_t pointerto_line_numbers(void) const;
+    uint16_t numberof_relocations(void) const;
+    uint16_t numberof_line_numbers(void) const;
+    uint32_t characteristics(void) const;
+
+    bool                              is_type(PE_SECTION_TYPES type) const;
+    const std::set<PE_SECTION_TYPES>& types(void) const;
+    bool                              has_characteristic(SECTION_CHARACTERISTICS c) const;
+    std::set<SECTION_CHARACTERISTICS> characteristics_list(void) const;
+
+
+    virtual void name(const std::string& name) override;
     virtual void content(const std::vector<uint8_t>& data) override;
-
-    void content(std::vector<uint8_t>&& data);
-
-    //! @brief Section flags LIEF::ELF::ELF_SECTION_FLAGS
-    uint64_t flags(void) const;
-
-    //! @brief ``True`` if the section has the given flag
-    //!
-    //! @param[in] flag flag to test
-    bool has(ELF_SECTION_FLAGS flag) const;
-
-    //! @brief ``True`` if the section is in the given segment
-    bool has(const Segment& segment) const;
-
-    //! @brief Return section flags as a ``std::set``
-    std::set<ELF_SECTION_FLAGS> flags_list(void) const;
-
-    virtual uint64_t size(void) const override;
-
-    virtual void size(uint64_t size) override;
-
-    virtual void offset(uint64_t offset) override;
-
-    virtual uint64_t offset(void) const override;
-
-
-    //! @see offset
-    uint64_t file_offset(void) const;
-    uint64_t original_size(void) const;
-    uint64_t alignment(void) const;
-    uint64_t information(void) const;
-    uint64_t entry_size(void) const;
-    uint32_t link(void) const;
-
-
-    //! Clear the content of the section with the given ``value``
-    Section& clear(uint8_t value = 0);
-    void add(ELF_SECTION_FLAGS flag);
-    void remove(ELF_SECTION_FLAGS flag);
-
-    void type(ELF_SECTION_TYPES type);
-    void flags(uint64_t flags);
-    void clear_flags(void);
-    void file_offset(uint64_t offset);
-    void link(uint32_t link);
-    void information(uint32_t info);
-    void alignment(uint64_t alignment);
-    void entry_size(uint64_t entry_size);
-
-    it_segments       segments(void);
-    it_const_segments segments(void) const;
+    void virtual_size(uint32_t virtualSize);
+    void pointerto_raw_data(uint32_t pointerToRawData);
+    void pointerto_relocation(uint32_t pointerToRelocation);
+    void pointerto_line_numbers(uint32_t pointerToLineNumbers);
+    void numberof_relocations(uint16_t numberOfRelocations);
+    void numberof_line_numbers(uint16_t numberOfLineNumbers);
+    void sizeof_raw_data(uint32_t sizeOfRawData);
+    void characteristics(uint32_t characteristics);
+    void type(PE_SECTION_TYPES type);
+    void add_type(PE_SECTION_TYPES type);
+    void remove_type(PE_SECTION_TYPES type);
+    void add_characteristic(SECTION_CHARACTERISTICS characteristic);
+    void remove_characteristic(SECTION_CHARACTERISTICS characteristic);
 
     virtual void accept(Visitor& visitor) const override;
-
-    Section& operator+=(ELF_SECTION_FLAGS c);
-    Section& operator-=(ELF_SECTION_FLAGS c);
 
     bool operator==(const Section& rhs) const;
     bool operator!=(const Section& rhs) const;
@@ -136,24 +99,18 @@ class LIEF_API Section : public LIEF::Section {
     LIEF_API friend std::ostream& operator<<(std::ostream& os, const Section& section);
 
   private:
+    std::vector<uint8_t>& content_ref(void);
 
-    // virtualAddress_, offset_ and size_ are inherited from LIEF::Section
-    uint32_t              name_idx_;
-    ELF_SECTION_TYPES     type_;
-    uint64_t              flags_;
-    uint64_t              original_size_;
-    uint32_t              link_;
-    uint32_t              info_;
-    uint64_t              address_align_;
-    uint64_t              entry_size_;
-    segments_t            segments_;
-    DataHandler::Handler* datahandler_;
-    std::vector<uint8_t>  content_c_;
-
-
-
+    uint32_t                virtualSize_;
+    std::vector<uint8_t>    content_;
+    uint32_t                pointerToRelocations_;
+    uint32_t                pointerToLineNumbers_;
+    uint16_t                numberOfRelocations_;
+    uint16_t                numberOfLineNumbers_;
+    uint32_t                characteristics_;
+    std::set<PE_SECTION_TYPES> types_;
 };
 
-}
-}
-#endif /* _ELF_SECTION_H_ */
+} // namespace PE
+} // namespace LIEF
+#endif /* _PE_SECTION_H_ */

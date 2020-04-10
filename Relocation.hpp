@@ -13,104 +13,60 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef LIEF_ELF_RELOCATION_H_
-#define LIEF_ELF_RELOCATION_H_
-
-#include <string>
-#include <map>
+#ifndef LIEF_PE_RELOCATION_H_
+#define LIEF_PE_RELOCATION_H_
+#include <vector>
 #include <iostream>
 
 #include "LIEF/Object.hpp"
 #include "LIEF/visibility.h"
 
-#include "LIEF/Abstract/Relocation.hpp"
-
-#include "LIEF/ELF/Structures.hpp"
-#include "LIEF/ELF/Symbol.hpp"
+#include "LIEF/PE/type_traits.hpp"
+#include "LIEF/PE/Structures.hpp"
+#include "LIEF/PE/RelocationEntry.hpp"
 
 namespace LIEF {
-namespace ELF {
+namespace PE {
 
 class Parser;
-class Binary;
 class Builder;
 
-class LIEF_API Relocation : public LIEF::Relocation {
+class LIEF_API Relocation : public Object {
 
   friend class Parser;
-  friend class Binary;
   friend class Builder;
 
   public:
-    Relocation(const Elf32_Rel*  header);
-    Relocation(const Elf32_Rela* header);
-    Relocation(const Elf64_Rel*  header);
-    Relocation(const Elf64_Rela* header);
-    Relocation(uint64_t address, uint32_t type = 0, int64_t addend = 0, bool isRela = false);
-
-    template<class T, typename = typename std::enable_if<std::is_enum<T>::value>::type>
-    Relocation(uint64_t address, T type, int64_t addend = 0, bool isRela = false) :
-      Relocation{address, static_cast<uint32_t>(type), addend, isRela}
-    {}
-
     Relocation(void);
+    Relocation(const Relocation& other);
+    Relocation& operator=(Relocation other);
+    Relocation(const pe_base_relocation_block* header);
     virtual ~Relocation(void);
 
-    Relocation& operator=(Relocation other);
-    Relocation(const Relocation& other);
     void swap(Relocation& other);
 
-    //uint64_t address(void) const;
-    int64_t  addend(void) const;
-    uint32_t type(void) const;
-    bool     is_rela(void) const;
-    bool     is_rel(void) const;
-    uint32_t info(void) const;
-    ARCH architecture(void) const;
-    RELOCATION_PURPOSES purpose(void) const;
+    uint32_t virtual_address(void) const;
+    uint32_t block_size(void) const;
+    it_const_relocation_entries entries(void) const;
+    it_relocation_entries entries(void);
 
-    //! @brief Return the **bit** size of the value to patch
-    //!
-    //! Return -1 if it fails
-    virtual size_t size(void) const override;
-
-    bool          has_symbol(void) const;
-    Symbol&       symbol(void);
-    const Symbol& symbol(void) const;
-
-    //! True if the relocation has a section associated
-    bool           has_section(void) const;
-
-    //! Section associated with this relocation
-    Section&       section(void);
-    const Section& section(void) const;
-
-    //void address(uint64_t address);
-    void addend(int64_t addend);
-    void type(uint32_t type);
-    void purpose(RELOCATION_PURPOSES purpose);
-    void info(uint32_t v);
+    void virtual_address(uint32_t virtual_address);
+    void block_size(uint32_t block_size);
+    RelocationEntry& add_entry(const RelocationEntry& entry);
 
     virtual void accept(Visitor& visitor) const override;
 
     bool operator==(const Relocation& rhs) const;
     bool operator!=(const Relocation& rhs) const;
 
-    LIEF_API friend std::ostream& operator<<(std::ostream& os, const Relocation& entry);
+    LIEF_API friend std::ostream& operator<<(std::ostream& os, const Relocation& relocation);
 
   private:
-    uint32_t            type_;
-    int64_t             addend_;
-    bool                isRela_;
-    Symbol*             symbol_{nullptr};
-    ARCH                architecture_;
-    RELOCATION_PURPOSES purpose_;
-    Section*            section_{nullptr};
-    uint32_t            info_;
+    uint32_t             block_size_;
+    uint32_t             virtual_address_;
+    relocation_entries_t entries_;
 };
 
-
-
 }
 }
-#endif /* _ELF_RELOCATION_H_ */
+#endif /* RELOCATION_H_ */
